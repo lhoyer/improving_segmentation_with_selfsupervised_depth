@@ -1,0 +1,84 @@
+seed: 42
+model:
+  arch: joint_segmentation_depth
+  backbone_name: resnet101
+  replace_stride_with_dilation: [False, False, True]
+  segmentation_name: joint_seg_depth_dec
+  depth_args: {}
+  segmentation_args: {}
+  pose_model_input: pairs
+  provide_uncropped_for_pose: False
+  backbone_pretraining: imnet # none, imnet, mono_1024x320, ...
+  depth_pretraining: none
+  pose_pretraining: none
+  freeze_backbone: False
+  freeze_depth: False
+  freeze_pose: False
+  freeze_segmentation: False
+  disable_monodepth: True
+  disable_pose: True
+  enable_imnet_encoder: False
+# monodepth_options are shared between data/mono, model, and training/mono_loss
+monodepth_options:
+  frame_ids: [0,-1,1]
+  num_scales: 4
+  height: 512
+  width: 1024
+  crop_h: 512
+  crop_w: 512
+data:
+  dataset: cityscapes
+  shuffle_trainset: True
+  path: MachineConfig.CITYSCAPES_DIR
+  generated_depth_dir: MachineConfig.GENERATED_DEPTH_DIR
+  augmentations:
+    random_horizontal_flip: 0.5
+  dataset_seed: same
+  only_sequences_with_segmentation: True
+  restrict_to_subset:
+    mode: random
+    subset:
+    n_subset: 100
+  val_downsample_gt: True
+  color_full_scale: 0
+training:
+  log_path: MachineConfig.LOG_DIR
+  train_iters: 40000
+  batch_size: 2
+  val_batch_size: 2
+  n_workers: 2
+  print_interval: 100
+  val_interval:
+    "0": 100
+    "100": 2500
+    "30000": 500
+  amp: False
+  optimizer:
+    name: 'sgd'
+    lr: 1.0e-3
+    weight_decay: 0.0005
+    momentum: 0.9
+  early_stopping:
+  lr_schedule:
+  segmentation_loss:
+    name: 'cross_entropy'
+  monodepth_lambda: 0.0
+  pseudo_depth_lambda: 0.0
+  feat_dist_lambda: 0.0
+  segmentation_lambda: 1.0
+  unlabeled_segmentation:
+  monodepth_loss:
+    min_depth: 0.1
+    max_depth: 100
+    test_min_depth: 1.0e-3
+    test_max_depth: 80
+    disparity_smoothness: 1.0e-3
+    no_ssim: False
+    avg_reprojection: False
+    disable_automasking: False
+  n_tensorboard_trainimgs: 0
+  n_tensorboard_imgs: 20
+  save_model: False
+  save_separate_monodepth_models: False
+  save_monodepth_ema: False
+  resume:
