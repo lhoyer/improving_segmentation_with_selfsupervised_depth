@@ -99,32 +99,32 @@ For that reason, we have commented out all but one subset size and seed as well 
 ### Framework Structure
 
 ##### Experiments and Configurations
-* **configs/machine_config.yml:** Definition of data and log paths for different machines.
-* **configs/cityscapes_monodepth\*:** Configurations for monodepth pretraining on Cityscapes.
-* **configs/cityscapes_joint.yml:** Base configuration for all semi-supervised segmentation experiments.
-* **experiments.py:** Generation of derivative configurations from cityscapes_joint.yml for the different experiments.
-* **run_experiments.py:** Execution of experiments defined in experiments.py.
+* *configs/machine_config.yml:* Definition of data and log paths for different machines.
+* *configs/cityscapes_monodepth\*:* Configurations for monodepth pretraining on Cityscapes.
+* *configs/cityscapes_joint.yml:* Base configuration for all semi-supervised segmentation experiments.
+* *experiments.py:* Generation of derivative configurations from cityscapes_joint.yml for the different experiments.
+* *run_experiments.py:* Execution of experiments defined in experiments.py.
 
 ##### Training Logic
 
-* **train.py:** Training script for a specific configuration. It contains the main training logic for self-supervised
+* *train.py:* Training script for a specific configuration. It contains the main training logic for self-supervised
 depth estimation, semi-supervised semantic segmentation, and DepthMix.
-* **label_selection.py:** Logic for unsupervised data selection for annotation.
-* **monodepth_loss.py:** Loss for self-supervised depth estimation.
+* *label_selection.py:* Logic for unsupervised data selection for annotation.
+* *monodepth_loss.py:* Loss for self-supervised depth estimation.
 
 ##### Models
 
-* **models/joint_segmentation_depth.py:** Combined model for depth estimation, pose prediction, and semantic segmentation.
-* **models/joint_segmentation_depth_decoder.py:** Segmentation decoders for transfer learning from self-supervised depth
+* *models/joint_segmentation_depth.py:* Combined model for depth estimation, pose prediction, and semantic segmentation.
+* *models/joint_segmentation_depth_decoder.py:* Segmentation decoders for transfer learning from self-supervised depth
 and multi-task learning.
-* **models/depth_decoder.py:** Multi-scale depth decoder.
-* **models/monodepth_layers.py:** Operations necessary for self-supervised depth estimation.
+* *models/depth_decoder.py:* Multi-scale depth decoder.
+* *models/monodepth_layers.py:* Operations necessary for self-supervised depth estimation.
 
 ##### Data Loading
 
-* **loader/sequence_segmentation_loader.py:** Base class for loading image sequences with segmentation labels.
-* **loader/cityscapes_loader.py:** Implementation for loading Cityscapes.
-* **loader/depth_estimator.py:** Generate depth estimates from pretrained self-supervised depth model and store them
+* *loader/sequence_segmentation_loader.py:* Base class for loading image sequences with segmentation labels.
+* *loader/cityscapes_loader.py:* Implementation for loading Cityscapes.
+* *loader/depth_estimator.py:* Generate depth estimates from pretrained self-supervised depth model and store them
 that they can be loaded by sequence_segmentation_loader as pseudo depth label.
-* **loader/preselected_labels.py:** A selection of annotated samples obtained with label_selection.py
+* *loader/preselected_labels.py:* A selection of annotated samples obtained with label_selection.py
 
