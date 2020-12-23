@@ -1,7 +1,7 @@
 ## Three Ways to Improve Semantic Segmentation with Self-Supervised Depth Estimation
 
 This is the official pytorch implementation of our paper 
-"Three Ways to Improve Semantic Segmentation with Self-Supervised Depth Estimation".
+[Three Ways to Improve Semantic Segmentation with Self-Supervised Depth Estimation](https://arxiv.org/pdf/2012.10782.pdf).
 
 Training deep networks for semantic segmentation requires large amounts of labeled training data, which presents a major
 challenge in practice, as labeling segmentation masks is a highly labor-intensive process. To address this issue, 
@@ -27,10 +27,11 @@ Below, you can see the qualitative results of our model trained with only 100 an
 If you find this code useful in your research, please consider citing:
 
 ```
-@article{hoyer2020segsde,
-    Author = {Hoyer, Lukas and Dai, Dengxin and Chen, Yuhua and Köring, Adrian and Saha, Suman and van Gool, Luc},
-    Title = {Three Ways to Improve Semantic Segmentation with Self-Supervised Depth Estimation},
-    Year = {2020}
+@article{hoyer2020three,
+    title = {Three Ways to Improve Semantic Segmentation with Self-Supervised Depth Estimation},
+    author = {Hoyer, Lukas and Dai, Dengxin and Chen, Yuhua and Köring, Adrian and Saha, Suman and Van Gool, Luc},
+    journal={arXiv preprint arXiv:2012.10782},
+    year = {2020}
 }
 ```
 
