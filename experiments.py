@@ -158,21 +158,23 @@ def generate_experiment_cfgs(base_cfg, id):
                 for n_subset in subsets(dataset):
                     dc_ft = 0
                     dc_m = 0.03
-                    pres_method = "ds_us"  # available: "ent", "ds", "ds_us"
-                    for name, seg_init, teacher_init, ema, mix_mask, only_unlabeled, mix_use_gt, preselect in [
-                        ('scratch', 'none', 'none', False, None, True, False, False),
-                        # (f'sel_{pres_method}_scratch', 'none', 'none', False, None, True, False, True),
-                        # ('scratch_ema', 'none', 'none', True, None, True, False, False),
-                        ('scratch_classmix', 'none', 'none', True, "class", True, False, False),
-                        # ("scratch_classmixgt", 'none', 'none', True, "class", False, True, False),
-                        ('transfer', mono_pretrain, mono_pretrain, False, None, True, False, False),
-                        # ('transfer_ema', mono_pretrain, mono_pretrain, True, None, True, False, False),
-                        # ('transfer_classmix', mono_pretrain, mono_pretrain, True, "class", True, False, False),
-                        # ('transfer_classmixgtall', mono_pretrain, mono_pretrain, True, "class", False, True, False),
+                    pres_method = "ds_us"  # available: "ent", "ds", "us", "ds_us"
+                    for name, seg_init, teacher_init, ema, mix_mask, only_unlabeled, mix_use_gt, preselect, mix_video in [
+                        ('scratch', 'none', 'none', False, None, True, False, False, False),
+                        # (f'sel_{pres_method}_scratch', 'none', 'none', False, None, True, False, True, False),
+                        # ('scratch_ema', 'none', 'none', True, None, True, False, False, False),
+                        ('scratch_classmix', 'none', 'none', True, "class", True, False, False, False),
+                        # ('scratch_classmix_video', 'none', 'none', True, "class", False, False, False, True),
+                        # ("scratch_classmixgt", 'none', 'none', True, "class", False, True, False, False),
+                        # ("scratch_depthmixgt", 'none', 'none', True, "depthcomp", False, True, False, False),
+                        ('transfer', mono_pretrain, mono_pretrain, False, None, True, False, False, False),
+                        # ('transfer_ema', mono_pretrain, mono_pretrain, True, None, True, False, False, False),
+                        # ('transfer_classmix', mono_pretrain, mono_pretrain, True, "class", True, False, False, False),
+                        # ('transfer_classmixgtall', mono_pretrain, mono_pretrain, True, "class", False, True, False, False),
                         (f'transfer_dcompgt{dc_m}{dc_ft}', mono_pretrain, mono_pretrain, True, "depthcomp", False, True,
-                         False),
-                        (f'sel_transfer_dcompgt{dc_m}{dc_ft}', mono_pretrain, mono_pretrain, True, "depthcomp", False,
-                         True, True),
+                         False, False),
+                        (f'sel_{pres_method}_transfer_dcompgt{dc_m}{dc_ft}', mono_pretrain, mono_pretrain, True, "depthcomp", False,
+                         True, True, False),
                     ]:
                         name = name.replace('.', '').replace(' ', '').replace(',', 'i').replace('(', 'I').replace(')',
                                                                                                                   'I')
@@ -184,6 +186,7 @@ def generate_experiment_cfgs(base_cfg, id):
                             "blur": True,
                             "only_unlabeled": only_unlabeled,
                             "only_labeled": False,
+                            "mix_video": mix_video,
                             "mix_use_gt": mix_use_gt,
                             "depthcomp_margin": dc_m,
                             "depthcomp_foreground_threshold": dc_ft,
@@ -249,7 +252,7 @@ def generate_experiment_cfgs(base_cfg, id):
                 ('entropy_sonly', 0, 1, "abs", "seg", "score", 0, None, 0, {}),
                 ("depthifp_u3-avg4", 0, 0, "abs", "depth", "ifp", 1, None, 0,
                  {'p': 2, 'pool': 'avg', 'h': 4, 'm': 'u3', 'norm': True}),
-                ("depthifp_u3-avg4_bias10ldepth_donly", 1, 0, "abs_log", "depth", "ifp", 1, None, 10,
+                ("depthifp_u3-avg4_bias1000ldepth_donly", 1, 0, "abs_log", "depth", "ifp", 1, None, 1000,
                  {'p': 2, 'pool': 'avg', 'h': 4, 'm': 'u3', 'norm': True}),
             ]:
                 assert selection_tasks in ["depth", "seg", "seg+depth"]
@@ -332,9 +335,10 @@ def generate_experiment_cfgs(base_cfg, id):
             for n_subset in subsets(dataset):
                 dc_ft = 0
                 dc_m = 0.03
+                pres_method = "ds_us"  # available: "ent", "ds", "us", "ds_us"
                 for name, ema, mix_mask, only_unlabeled, mix_use_gt, preselect in [
                     (f'pad_transfer_dcompgt{dc_m}{dc_ft}', True, "depthcomp", False, True, False),
-                    (f'sel_pad_transfer_dcompgt{dc_m}{dc_ft}', True, "depthcomp", False, True, True),
+                    (f'sel_{pres_method}_pad_transfer_dcompgt{dc_m}{dc_ft}', True, "depthcomp", False, True, True),
                 ]:
                     name = name.replace('.', '').replace(' ', '').replace(',', 'i').replace('(', 'I').replace(')', 'I')
                     restrict_mode = "fixed" if preselect else "random"
@@ -383,7 +387,7 @@ def generate_experiment_cfgs(base_cfg, id):
                     cfg['data']['restrict_to_subset']['n_subset'] = n_subset
                     if preselect:
                         cfg['data']['restrict_to_subset']['subset'] = preselected_labels(
-                            {7: 42, 25: 43, 42: 44}[seed], n_subset, dataset
+                            {7: 42, 25: 43, 42: 44}[seed], n_subset, dataset, method=pres_method
                         )
                     cfg['training']['unlabeled_segmentation'] = unlab_cfg
                     cfg['seed'] = seed

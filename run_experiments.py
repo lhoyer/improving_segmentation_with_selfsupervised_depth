@@ -34,7 +34,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--machine",
         type=str,
-        choices=["ws", "slurm", "dgx", "marvin", "aws"]
+        choices=MachineConfig.AVAIL_MACHINES
     )
     parser.add_argument(
         "--run",

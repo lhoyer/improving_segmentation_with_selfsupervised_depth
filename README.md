@@ -27,11 +27,11 @@ Below, you can see the qualitative results of our model trained with only 100 an
 If you find this code useful in your research, please consider citing:
 
 ```
-@article{hoyer2020three,
-    title = {Three Ways to Improve Semantic Segmentation with Self-Supervised Depth Estimation},
-    author = {Hoyer, Lukas and Dai, Dengxin and Chen, Yuhua and Köring, Adrian and Saha, Suman and Van Gool, Luc},
-    journal={arXiv preprint arXiv:2012.10782},
-    year = {2020}
+@inproceedings{hoyer2021three,
+  title={Three Ways to Improve Semantic Segmentation with Self-Supervised Depth Estimation},
+  author={Hoyer, Lukas and Dai, Dengxin and Chen, Yuhua and Köring, Adrian and Saha, Suman and Van Gool, Luc},
+  booktitle={IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+  year={2021}
 }
 ```
 

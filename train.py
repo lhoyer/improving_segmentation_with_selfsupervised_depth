@@ -226,8 +226,14 @@ class Trainer():
                 unlabeled_segmentation_cfg.update({"load_unlabeled": False, "load_labeled": True})
             else:
                 unlabeled_segmentation_cfg.update({"load_unlabeled": True, "load_labeled": True})
+            if self.mix_video:
+                assert not self.mix_use_gt and not self.only_labeled and not self.only_unlabeled, \
+                    "Video sample indices are not compatible with non-video indices."
+                unlabeled_segmentation_cfg.update({"only_sequences_with_segmentation": not self.mix_video,
+                                                   "restrict_to_subset": None})
             self.unlabeled_loader = build_loader(unlabeled_segmentation_cfg, "train",
-                                                 load_labels=load_labels, load_sequence=load_sequence)
+                                                 load_labels=load_labels if not self.mix_video else False,
+                                                 load_sequence=load_sequence)
         else:
             self.unlabeled_loader = None
         self.val_loader = build_loader(self.cfg["data"], "val", load_labels=load_labels,
@@ -554,6 +560,7 @@ class Trainer():
         self.unlabeled_blur = unlabeled_cfg.get("blur")
         self.only_unlabeled = unlabeled_cfg.get("only_unlabeled", True)
         self.only_labeled = unlabeled_cfg.get("only_labeled", False)
+        self.mix_video = unlabeled_cfg.get("mix_video", False)
         assert not (self.only_unlabeled and self.only_labeled)
         self.mix_use_gt = unlabeled_cfg.get("mix_use_gt", False)
         self.unlabeled_debug_imgs = unlabeled_cfg.get("debug_images", False)
