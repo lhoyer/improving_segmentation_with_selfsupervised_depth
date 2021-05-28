@@ -3,6 +3,7 @@ class MachineConfig:
     CITYSCAPES_DIR = None
     GENERATED_DEPTH_DIR = None
     LOG_DIR = None
+    AVAIL_MACHINES = ["ws"]
 
     def __init__(self, machine):
         if machine == "ws":
