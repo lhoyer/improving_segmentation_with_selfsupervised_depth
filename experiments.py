@@ -248,10 +248,14 @@ def generate_experiment_cfgs(base_cfg, id):
                 "camvid": ("labsch_25-50-100_4-8-12-scratch", [25, 50, 100], [4e3, 8e3, 12e3], True, True),
             }[dataset]
             for name, depth_lambda, entropy_lambda, dtype, selection_tasks, choice, depthifp_w, n_pres, bias_w, ifp_args in [
-                ('random', 0, 0, "abs", "seg", "random", 0, None, 0, {}),
-                ('entropy_sonly', 0, 1, "abs", "seg", "score", 0, None, 0, {}),
-                ("depthifp_u3-avg4", 0, 0, "abs", "depth", "ifp", 1, None, 0,
-                 {'p': 2, 'pool': 'avg', 'h': 4, 'm': 'u3', 'norm': True}),
+                # Active Learning Segmentation Entropy Selection
+                # ('entropy_sonly', 0, 1, "abs", "seg", "score", 0, None, 0, {}),
+                # Ours (Diversity Sampling)
+                # ("depthifp_u3-avg4", 0, 0, "abs", "depth", "ifp", 1, None, 0,
+                #  {'p': 2, 'pool': 'avg', 'h': 4, 'm': 'u3', 'norm': True}),
+                # Ours (Uncertainty Sampling)
+                # ("ldepth_donly", 1, 0, "abs_log", "depth", "score", 0, None, 0, {}),
+                # Ours (Diversity and Uncertainty Sampling)
                 ("depthifp_u3-avg4_bias1000ldepth_donly", 1, 0, "abs_log", "depth", "ifp", 1, None, 1000,
                  {'p': 2, 'pool': 'avg', 'h': 4, 'm': 'u3', 'norm': True}),
             ]:
