@@ -30,7 +30,8 @@ If you find this code useful in your research, please consider citing:
 @inproceedings{hoyer2021three,
   title={Three Ways to Improve Semantic Segmentation with Self-Supervised Depth Estimation},
   author={Hoyer, Lukas and Dai, Dengxin and Chen, Yuhua and Köring, Adrian and Saha, Suman and Van Gool, Luc},
-  booktitle={IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  pages={11130--11140},
   year={2021}
 }
 ```
@@ -61,18 +62,30 @@ CITYSCAPES_DIR/
 You can setup the paths for data and logging in the machine config ``configs/machine_confg.py``.
 In the following, we assume that you have called your machine `ws`.
 
+### Inference with a Pretrained Model
+
+If you want to test our pretrained model (trained on 372 Cityscapes images) on some of your own images, 
+you can download the checkpoint [here](https://drive.google.com/file/d/1vnQAF_BeQWZagH-izSQIBRlSVDWDJME2/view?usp=sharing),
+unzip it, and run it using:
+
+```
+python inference.py --machine ws --model /path/to/checkpoint/dir/ --data /path/to/data/dir/
+```
+
 ### Pretrain Self-supervised Depth on Cityscapes
 
-To run the two phases of the pretraining (first 300k iterations with frozen encoder and 50k iterations with ImageNet
-feature distance loss), you can execute:
+To run the two phases of the self-supervised depth estimation pretraining (first 300k iterations with frozen encoder and 
+50k iterations with ImageNet feature distance loss), you can execute:
 
 ```
 python train.py --machine ws --config configs/cityscapes_monodepth_highres_dec5_crop.yml
 python train.py --machine ws --config configs/cityscapes_monodepth_highres_dec6_crop.yml
 ```
 
-For more information on the configuration, see the corresponding yaml files. The trained models are available on
-Google Drive. The download information is provided in [models/utils.py](models/utils.py).
+You can also skip this section if you want to use our pretrained self-supervised depth estimation model. 
+It will be downloaded automatically in the following section. If you want to use your own pretrained
+model, you can adapt [models/utils.py#L108](models/utils.py#L108) that the model references point to your
+own model on Google drive.
 
 ### Run Semi-Supervised Experiments
 
@@ -86,13 +99,14 @@ The EXP_ID corresponds to the experiment defined in [experiments.py](experiments
 Following experiments are relevant for the paper:
 
 * **Experiment 210:** All configurations that are only based on transfer learning.
-* **Experiment 211:** Unsupervised data selection for annotation configurations.
+* **Experiment 211:** Automatic data selection for annotation configurations.
 * **Experiment 212:** Configurations that involve multi-task learning.
 
-To use the labels selected by the unsupervised data selection for the other experiments, please copy the content of 
-`nlabelsXXX_subset.json` from the log directory to [loader/preselected_labels.py](loader/preselected_labels.py).
+To use the labels selected by the automatic data selection for the other experiments, please copy the content of 
+`nlabelsXXX_subset.json` from the log directory to [loader/preselected_labels.py](loader/preselected_labels.py)
+after running experiment 211.
 For better reproducibility, we have stored our results there as well.
-Table 3 is generated using experiment 210 with config sel_{pres_method}_scratch. 
+Table 3 is generated using experiment 210 with the config sel_{pres_method}_scratch. 
 
 Be aware that running all experiments takes multiple weeks on a single GPU. 
 For that reason, we have commented out all but one subset size and seed as well as minor ablations.
@@ -110,7 +124,7 @@ For that reason, we have commented out all but one subset size and seed as well 
 
 * *train.py:* Training script for a specific configuration. It contains the main training logic for self-supervised
 depth estimation, semi-supervised semantic segmentation, and DepthMix.
-* *label_selection.py:* Logic for unsupervised data selection for annotation.
+* *label_selection.py:* Logic for automatic data selection for annotation.
 * *monodepth_loss.py:* Loss for self-supervised depth estimation.
 
 ##### Models

@@ -1,6 +1,7 @@
 from loader.camvid_loader import CamvidLoader
 from loader.cityscapes_loader import CityscapesLoader
 from loader.mapillary_vistas_loader import MapillaryVistasLoader
+from loader.inference_loader import InferenceLoader
 
 
 def get_loader(name):
@@ -12,6 +13,7 @@ def get_loader(name):
         "cityscapes": CityscapesLoader,
         "camvid": CamvidLoader,
         "mapillary": MapillaryVistasLoader,
+        "inference": InferenceLoader,
     }[name]
 
 def build_loader(cfg, split='train', load_labels=True, load_sequence=True):
