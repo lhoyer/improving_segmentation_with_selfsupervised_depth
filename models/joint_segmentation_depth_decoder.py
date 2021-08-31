@@ -26,7 +26,7 @@ class JointSegDepthDecoder(nn.Module):
         assert len(num_ch_enc) == 5
         assert len(num_ch_dec) == 5
         self.last_layer = len(num_ch_enc) + len(num_ch_dec) - 1
-        self.unet_dec = get_depth_decoder(weights, num_ch_enc, **depth_args)
+        self.unet_dec = get_depth_decoder("monodepth2", weights, num_ch_enc, **depth_args)
         accumulated_ch = 0
         self.project = {}
         for layer in layers:
@@ -72,13 +72,12 @@ class JointSegDepthDecoder(nn.Module):
         if last_layer_size != segmentation_size:
             score = F.interpolate(score, size=segmentation_size, mode='bilinear', align_corners=False)
         JointSegDepthDecoder.first_iter = False
-        return score
-
+        return {"semantics": score}
 
 class PAD(nn.Module):
     first_iter = True
 
-    def __init__(self, num_ch_enc, num_ch_dec, num_classes, final_layer=9,
+    def __init__(self, num_ch_enc, num_ch_dec, num_classes, scales, final_layer=9,
                  weights=None, output_stride=1, depth_args=None, distillation_layer=7, side_output=True):
         super(PAD, self).__init__()
         self.output_stride = output_stride
@@ -95,11 +94,10 @@ class PAD(nn.Module):
         distillation_ch = self.layer_channels(self.distillation_layer)
         final_ch = self.layer_channels(self.final_layer)
 
-        num_scales = 4
-        self.depth_dec = get_depth_decoder(weights, num_ch_enc, range(num_scales), **depth_args)
-        self.seg_dec = get_depth_decoder(weights, num_ch_enc, range(num_scales), **depth_args)
+        self.depth_dec = get_depth_decoder("monodepth2", weights, num_ch_enc, scales, **depth_args)
+        self.seg_dec = get_depth_decoder("monodepth2", weights, num_ch_enc, scales, **depth_args)
         self.seg_dec.enable_disparity = False
-        for s in range(num_scales):
+        for s in scales:
             self.seg_dec.convs[("dispconv", s)] = nn.Identity()
 
         self.sa_depth = SelfAttention(distillation_ch, distillation_ch)

@@ -46,7 +46,7 @@ class DepthEstimator:
         self.loader = data.ConcatDataset([self.train_loader, self.val_loader])
         self.n_classes = self.train_loader.n_classes
 
-        batch_size = 4
+        batch_size = 6
         self.data_loader = data.DataLoader(
             self.loader,
             batch_size=batch_size,
@@ -64,13 +64,10 @@ class DepthEstimator:
         with torch.no_grad():
             for inputs_val in tqdm(self.data_loader,
                                    total=len(self.data_loader)):
-                batch_exists = True
-                for f in inputs_val["filename"]:
-                    filename = self.build_filename(f)
-                    if not os.path.isfile(filename):
-                        batch_exists = False
-                if batch_exists:
-                    continue
+                filename = self.build_filename(inputs_val["filename"][0])
+                if os.path.isfile(filename):
+                    print("Depth estimates are already generated. Skip DepthEstimator.")
+                    break
 
                 for k, v in inputs_val.items():
                     if torch.is_tensor(v) and k == ("color", 0, 0):

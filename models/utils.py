@@ -25,6 +25,15 @@ def get_resnet_backbone(backbone_name, backbone_pretraining="none", replace_stri
             n_res = int(match.groups()[-1])
         else:
             raise ValueError
+        if isinstance(replace_stride_with_dilation, int):
+            if replace_stride_with_dilation == 8:
+                replace_stride_with_dilation = [False, True, True]
+            elif replace_stride_with_dilation == 16:
+                replace_stride_with_dilation = [False, False, True]
+            elif replace_stride_with_dilation == 32:
+                replace_stride_with_dilation = [False, False, False]
+            else:
+                raise NotImplementedError(replace_stride_with_dilation)
         if backbone_pretraining == "none":
             backbone = ResnetEncoder(n_res, False, num_input_images=num_input_images,
                                      replace_stride_with_dilation=replace_stride_with_dilation)
@@ -37,7 +46,7 @@ def get_resnet_backbone(backbone_name, backbone_pretraining="none", replace_stri
             print('Load ' + backbone_pretraining + 'weights')
             download_model_if_doesnt_exist(backbone_pretraining)
             encoder_path = os.path.join(MachineConfig.DOWNLOAD_MODEL_DIR, backbone_pretraining, "encoder.pth")
-            loaded_dict_enc = torch.load(encoder_path, map_location=torch.device(device))
+            loaded_dict_enc = torch.load(encoder_path, map_location=device)
             filtered_dict_enc = {k: v for k, v in loaded_dict_enc.items() if k in backbone.state_dict()}
             backbone.load_state_dict(filtered_dict_enc, strict=False)
         else:
@@ -55,17 +64,20 @@ def get_resnet_backbone(backbone_name, backbone_pretraining="none", replace_stri
     return backbone
 
 
-def get_depth_decoder(depth_pretraining, num_ch_enc, scales=range(4), **kwargs):
+def get_depth_decoder(depth_name, depth_pretraining, num_ch_enc, scales=range(4), **kwargs):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    depth_decoder = DepthDecoder(num_ch_enc, scales, **kwargs)
+    if depth_name == "monodepth2":
+        depth_decoder = DepthDecoder(num_ch_enc, scales, **kwargs)
+    else:
+        raise NotImplementedError(depth_name)
     depth_decoder.to(device)
 
     if depth_pretraining != 'none':
         print('Load ' + depth_pretraining + 'depth weights')
         download_model_if_doesnt_exist(depth_pretraining)
         model_path = os.path.join(MachineConfig.DOWNLOAD_MODEL_DIR, depth_pretraining, "depth.pth")
-        loaded_dict = torch.load(model_path, map_location=torch.device(device))
+        loaded_dict = torch.load(model_path, map_location=device)
         filtered_dict = loaded_dict
         # filtered_dict = {k: v for k, v in loaded_dict.items() if k in depth_decoder.state_dict()}
         depth_decoder.load_state_dict(filtered_dict)
@@ -73,7 +85,7 @@ def get_depth_decoder(depth_pretraining, num_ch_enc, scales=range(4), **kwargs):
     return depth_decoder
 
 
-def get_posenet(backbone_name, backbone_pretraining, pose_pretraining, num_pose_frames):
+def get_posenet(backbone_name, backbone_pretraining, pose_pretraining, num_pose_frames, pose_norm, pose_scale):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     models = {}
     models["pose_encoder"] = get_resnet_backbone(backbone_name=backbone_name,
@@ -82,15 +94,18 @@ def get_posenet(backbone_name, backbone_pretraining, pose_pretraining, num_pose_
     models["pose"] = PoseDecoder(
         models["pose_encoder"].num_ch_enc,
         num_input_features=1,
-        num_frames_to_predict_for=2)
+        num_frames_to_predict_for=2,
+        norm=pose_norm,
+        scale=pose_scale,
+    )
 
-    if "mono" in pose_pretraining:
+    if pose_pretraining not in ["none", "imnet"]:
         for mn in ["pose_encoder", "pose"]:
             if mn not in models:
                 continue
             download_model_if_doesnt_exist(pose_pretraining)
             path = os.path.join(MachineConfig.DOWNLOAD_MODEL_DIR, pose_pretraining, "{}.pth".format(mn))
-            loaded_dict = torch.load(path, map_location=torch.device(device))
+            loaded_dict = torch.load(path, map_location=device)
             filtered_dict = {k: v for k, v in loaded_dict.items() if k in models[mn].state_dict()}
             models[mn].load_state_dict(filtered_dict)
 
@@ -131,11 +146,16 @@ def download_model_if_doesnt_exist(model_name, download_dir=None):
         "mono_cityscapes_1024x512_r101dil_aspp_dec6_lr5_fd2_crop512x512bs2":
             ("gdrive_id=1bHlAYHKSv6sVbQBMlQ-D7kkUcAMb8-Jq",
              ""),
+        "synthia_rev2_89b89":
+            ("gdrive_id=1aHY48Lk9vbvbKA8iJxT7tsOvyhJcMm-f",
+             ""),
+        "gta_rev2_fc046":
+            ("gdrive_id=1vm3wRA54tQJ5CeW6-5HSXwjKSg4wuklX",
+             ""),
     }
     if download_dir is None:
         download_dir = MachineConfig.DOWNLOAD_MODEL_DIR
         download_dir = os.path.expandvars(download_dir)
-        download_dir = download_dir.replace('$SLURM_JOB_ID/', '')
     os.makedirs(download_dir, exist_ok=True)
     model_path = os.path.join(download_dir, model_name)
 
@@ -149,7 +169,8 @@ def download_model_if_doesnt_exist(model_name, download_dir=None):
         # return current_md5checksum == checksum
 
     # see if we have the model already downloaded...
-    if not os.path.exists(os.path.join(model_path, "depth.pth")):
+    if not os.path.exists(os.path.join(model_path, "depth.pth")) and \
+            not os.path.exists(os.path.join(model_path, "best_model_without_opt.pkl")):
 
         model_url, required_md5checksum = download_paths[model_name]
 

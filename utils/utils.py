@@ -2,6 +2,7 @@ import contextlib
 import datetime
 import logging
 import os
+import tarfile
 
 import numpy as np
 
@@ -26,6 +27,20 @@ def recursive_glob(rootdir=".", suffix=""):
         for filename in filenames
         if filename.endswith(suffix)
     ]
+
+def is_source_file(x):
+    if x.isdir() or x.name.endswith((".py", ".sh", ".yml", ".json", ".txt")):
+        # print(x.name)
+        return x
+    else:
+        return None
+
+def gen_code_archive(out_dir, id):
+    archive = os.path.join(out_dir, f"code_{id}.tar.gz")
+    os.makedirs(os.path.dirname(archive), exist_ok=True)
+    with tarfile.open(archive, mode='w:gz') as tar:
+        tar.add(".", filter=is_source_file)
+    return archive
 
 def get_logger(logdir):
     logger = logging.getLogger("segsde")

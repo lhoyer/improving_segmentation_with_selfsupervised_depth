@@ -1,0 +1,95 @@
+main: train
+model:
+  arch: joint_segmentation_depth
+  backbone_name: resnet101
+  replace_stride_with_dilation: [ False, False, False ]
+  segmentation_name:
+  segmentation_args:
+  pose_name: resnet18
+  depth_name: monodepth2
+  depth_args:
+    intermediate_aspp: True
+    aspp_rates: [ 3, 6, 9 ]
+    n_upconv: 4
+    num_ch_dec: [ 16, 32, 64, 128, 256 ]
+    max_scale_size: [ 512, 1024 ]
+    batch_norm: False
+  pose_model_input: pairs
+  backbone_pretraining: imnet # none, imnet, mono_1024x320, ...
+  depth_pretraining: none
+  pose_pretraining: imnet
+  freeze_backbone: False
+  freeze_depth: False
+  freeze_pose: False
+  freeze_segmentation: True
+  freeze_pose_bn: False
+  disable_monodepth: False
+  disable_pose: False
+  enable_imnet_encoder: False
+  provide_uncropped_for_pose: True
+# monodepth_options are shared between data, model, and training/mono_loss
+monodepth_options:
+  frame_ids: [ 0,-1,1 ]
+  scales: [0, 1, 2, 3]
+  height: 512
+  width: 1024
+  crop_h: 512
+  crop_w: 512
+data:
+  dataset: cityscapes
+  shuffle_trainset: True
+  path: MachineConfig.CITYSCAPES_DIR
+  augmentations:
+    random_horizontal_flip: 0.5
+    color_aug: True
+  dataset_seed: 42
+  only_sequences_with_segmentation: False
+  restrict_to_subset:
+  color_full_scale: 0
+  num_val_samples: 200
+  val_downsample_gt: True
+training:
+  log_path: MachineConfig.LOG_DIR/
+  train_iters: 350000
+  batch_size: 4
+  val_batch_size: 2
+  n_workers: 2
+  print_interval: 100
+  val_interval:
+    "0": 100
+    "100": 4000
+    "24000": 12000
+  amp: False
+  optimizer:
+    name: 'adam'
+    lr: 1.0e-4
+    backbone_lr: 1.0e-5
+    pose_lr: 1.0e-4
+  early_stopping:
+  lr_schedule:
+    name: multi_step
+    gamma: 0.1
+    milestones: [ 160000 ]
+  segmentation_loss:
+    name: 'cross_entropy'
+  monodepth_lambda: 1.0
+  pseudo_depth_lambda: 0.0
+  segmentation_lambda: 0.0
+  feat_dist_lambda: 0.0
+  unlabeled_segmentation:
+  monodepth_loss:
+    min_depth: 0.1
+    max_depth: 100
+    test_min_depth: 1.0e-3
+    test_max_depth: 80
+    disparity_smoothness: 1.0e-3
+    no_ssim: False
+    avg_reprojection: False
+    disable_automasking: False
+  n_tensorboard_trainimgs: 0
+  n_tensorboard_imgs: 20
+  log_gradients: False
+  save_model: True
+  save_separate_monodepth_models: False
+  save_monodepth_ema: False
+  resume:

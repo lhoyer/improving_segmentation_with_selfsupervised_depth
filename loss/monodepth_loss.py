@@ -14,11 +14,10 @@ from models.monodepth_layers import disp_to_depth, get_smooth_loss, SSIM, Backpr
 
 
 class MonodepthLoss:
-    def __init__(self, num_scales, frame_ids, height, width, batch_size, min_depth, max_depth,
+    def __init__(self, scales, frame_ids, height, width, batch_size, min_depth, max_depth,
                  test_min_depth, test_max_depth, disparity_smoothness,
                  no_ssim, avg_reprojection, disable_automasking, crop_h=None, crop_w=None, is_train=True):
-        self.num_scales = num_scales
-        self.scales = list(range(self.num_scales))
+        self.scales = scales
         self.height = height if crop_h is None or not is_train else crop_h
         self.width = width if crop_w is None or not is_train else crop_w
         self.batch_size = batch_size
@@ -41,7 +40,7 @@ class MonodepthLoss:
 
         self.backproject_depth = {}
         self.project_3d = {}
-        for scale in self.scales:
+        for scale in list({0, *self.scales}):
             h = self.height // (2 ** scale)
             w = self.width // (2 ** scale)
 
@@ -187,7 +186,7 @@ class MonodepthLoss:
             total_loss += loss
             losses["loss/{}".format(scale)] = loss
 
-        total_loss /= self.num_scales
+        total_loss /= len(self.scales)
         losses["loss"] = total_loss
         return losses
 

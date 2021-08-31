@@ -1,16 +1,17 @@
 import argparse
 import os
+import subprocess
 import traceback
+import uuid
 from datetime import datetime
 
 import torch
 import yaml
 
-import label_selection
 import train
 from configs.machine_config import MachineConfig
 from experiments import generate_experiment_cfgs
-from utils.cluster_utils import CustomVariantGenerator
+from utils.utils import gen_code_archive
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -18,7 +19,7 @@ if __name__ == "__main__":
         "--config",
         nargs="?",
         type=str,
-        default="configs/cityscapes_joint.yml",
+        default="configs/ssda.yml",
         help="Base config file to use",
     )
     parser.add_argument(
@@ -29,6 +30,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--dry",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--interactive",
         action="store_true",
     )
     parser.add_argument(
@@ -57,14 +62,6 @@ if __name__ == "__main__":
 
     cfgs = generate_experiment_cfgs(base_cfg, args.exp)
 
-
-    def trial_name_string(trial):
-        if 'tag' in trial.config:
-            return trial.config['tag']
-        else:
-            return trial.config['general']['tag']
-
-
     experiment_name = "{}_{}".format(
         args.config.rsplit("/", 1)[1].split(".")[0],
         args.exp
@@ -78,27 +75,27 @@ if __name__ == "__main__":
     out_dir = os.path.expandvars(out_dir)
     os.makedirs(out_dir, exist_ok=True)
 
-    variant_generator = CustomVariantGenerator()
-    unresolved_spec = {
-        "config": cfgs
-    }
-    for i, variant in enumerate(variant_generator._generate_resolved_specs(1, unresolved_spec)):
+    # Generate code archive
+    code_archive = gen_code_archive(out_dir, run_id)
+
+    for i, cfg in enumerate(cfgs):
         if args.run != "all" and i not in args.run:
             continue
-        print("Dispatch job {}".format(variant["experiment_tag"]))
-        cfg = variant["spec"]["config"]
-        cfg["name"] = datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + variant["experiment_tag"]
+        print("Dispatch job {}".format(cfg["tag"]))
+        cfg["experiment_name"] = experiment_name
+        cfg["name"] = f'{datetime.now().strftime("%y%m%d_%H%M")}_{cfg["tag"]}_{str(uuid.uuid4())[:5]}'
+
         cfg["machine"] = args.machine
         cfg["training"]["log_path"] = os.path.join(cfg["training"]["log_path"], experiment_name) + "/"
-        out_file = os.path.join(out_dir, variant["trial_id"] + ".yaml")
-        with open(out_file, 'w') as of:
+        cfg_out_file = os.path.join(out_dir, f"{i:04d}.yaml")
+        with open(cfg_out_file, 'w') as of:
             yaml.safe_dump(cfg, of, default_flow_style=False)
         if not args.dry:
             try:
-                if args.exp == 211:
-                    label_selection.label_selection_main(cfg)
-                else:
+                if cfg["main"] == "train":
                     train.train_main(cfg)
+                else:
+                    raise NotImplementedError(cfg["main"])
             except Exception:
                 print(traceback.format_exc())
                 print("Continue with next experiment.")

@@ -5,6 +5,14 @@ import numpy as np
 import torch
 
 
+def get_class_mask(label):
+    classes = torch.unique(label)
+    nclasses = classes.shape[0]
+    classes = (classes[torch.Tensor(
+        np.random.choice(nclasses, int((nclasses + nclasses % 2) / 2), replace=False)).long()]).cuda()
+    return generate_class_mask(label, classes).unsqueeze(0).cuda()
+
+
 def generate_cutout_mask(img_size, seed=None):
     np.random.seed(seed)
 

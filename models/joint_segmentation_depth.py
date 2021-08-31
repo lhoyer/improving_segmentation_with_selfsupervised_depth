@@ -86,7 +86,7 @@ class JointSegmentationMonodepth(nn.Module):
             if "depth" in self.models:
                 outputs.update(self.models["depth"](features))
             if "segmentation" in self.models:
-                outputs["semantics"] = self.models["segmentation"](features)
+                outputs.update(self.models["segmentation"](features))
 
         if "imnet_encoder" in self.models:
             outputs["encoder_features"] = features[-1]
@@ -94,7 +94,8 @@ class JointSegmentationMonodepth(nn.Module):
             with torch.no_grad():
                 outputs["imnet_features"] = self.models["imnet_encoder"](inputs["color_aug", 0, 0])[-1].detach()
 
-        if self.use_pose_net:
+        # Don't calculate pose if there is no sequence data (e.g. on gta)
+        if self.use_pose_net and ('color_aug', -1, 0) in inputs:
             outputs.update(self.predict_poses(inputs, features))
 
         return outputs
@@ -106,21 +107,21 @@ def get_segmentation_network(segmentation_name, num_ch_enc, segmentation_size, n
         'joint_seg_depth_dec': JointSegDepthDecoder,
         'mtl_pad': PAD,
     }
-    num_ch_dec = depth_args.get("num_ch_dec", [16, 32, 64, 128, 256])
+    num_ch_dec = segmentation_args.pop("num_ch_dec", depth_args.get("num_ch_dec", None))
     segmentation_net = model_map[segmentation_name](num_ch_enc, num_ch_dec,
                                                     num_classes, **segmentation_args, depth_args=depth_args)
 
     return segmentation_net
 
 
-def joint_segmentation_depth(name, backbone_name, segmentation_name, segmentation_args,
+def joint_segmentation_depth(name, backbone_name, segmentation_name, pose_name, segmentation_args,
                              num_classes, backbone_pretraining,
                              depth_pretraining, pose_pretraining, freeze_backbone,
-                             freeze_segmentation,
-                             freeze_depth, freeze_pose, replace_stride_with_dilation,
-                             frame_ids, num_scales, pose_model_input, provide_uncropped_for_pose,
-                             height, width, depth_args, disable_monodepth, enable_imnet_encoder,
-                             disable_pose, imnet_encoder_dilation=True, **kwargs):
+                             freeze_segmentation, freeze_depth, freeze_pose, replace_stride_with_dilation,
+                             frame_ids, scales, pose_model_input, provide_uncropped_for_pose,
+                             height, width, depth_name, depth_args, disable_monodepth, enable_imnet_encoder,
+                             disable_pose, imnet_encoder_dilation=True, pose_norm=None, pose_scale=0.01,
+                             **kwargs):
     num_input_frames = len(frame_ids)
     num_pose_frames = 2 if pose_model_input == "pairs" else num_input_frames
     assert frame_ids[0] == 0
@@ -129,7 +130,7 @@ def joint_segmentation_depth(name, backbone_name, segmentation_name, segmentatio
     models = {}
     models["encoder"] = get_resnet_backbone(
         backbone_name, backbone_pretraining,
-        replace_stride_with_dilation, use_intermediate_layer_getter=False
+        replace_stride_with_dilation, use_intermediate_layer_getter=False,
     )
     num_ch_enc = models["encoder"].num_ch_enc
 
@@ -143,14 +144,17 @@ def joint_segmentation_depth(name, backbone_name, segmentation_name, segmentatio
             param.requires_grad = False
 
     if use_pose_net and not disable_monodepth:
-        models.update(get_posenet("resnet18", backbone_pretraining, pose_pretraining, num_pose_frames))
+        models.update(get_posenet(pose_name, backbone_pretraining, pose_pretraining, num_pose_frames, pose_norm,
+                                  pose_scale))
 
     if segmentation_name in ["mtl_pad"]:
+        segmentation_args["scales"] = scales
         models["mtl_decoder"] = get_segmentation_network(segmentation_name, num_ch_enc, (height, width),
                                                          num_classes, segmentation_args, depth_args)
     else:
         if not disable_monodepth:
-            models["depth"] = get_depth_decoder(depth_pretraining, num_ch_enc, range(num_scales), **depth_args)
+            models["depth"] = get_depth_decoder(depth_name, depth_pretraining, num_ch_enc, scales,
+                                                **depth_args)
         if segmentation_name is not None:
             models["segmentation"] = get_segmentation_network(segmentation_name, num_ch_enc, (height, width),
                                                               num_classes, segmentation_args, depth_args)

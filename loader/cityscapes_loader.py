@@ -23,7 +23,7 @@ class Cityscapes:
         [220, 220, 0],
         [107, 142, 35],
         [152, 251, 152],
-        [0, 130, 180],
+        [70, 130, 180],
         [220, 20, 60],
         [255, 0, 0],
         [0, 0, 142],
@@ -124,13 +124,16 @@ class CityscapesLoader(SequenceSegmentationLoader):
 
         self.full_res_shape = (2048, 1024)
         # See https://www.cityscapes-dataset.com/file-handling/?packageID=8
-        self.fx = 2262.52
-        self.fy = 2265.3017905988554
-        self.u0 = 1096.98
-        self.v0 = 513.137
+        self.fx = 2262.52 / self.full_res_shape[0]
+        self.fy = 2265.3017905988554 / self.full_res_shape[1]
+        self.u0 = 1096.98 / self.full_res_shape[0]
+        self.v0 = 513.137 / self.full_res_shape[1]
 
     def _prepare_filenames(self):
-        if self.img_size == (512, 1024):
+        if self.img_size == (1024, 2048) or not self.load_preprocessed:
+            self.images_base = os.path.join(self.root, "leftImg8bit", self.split)
+            self.sequence_base = os.path.join(self.root, "leftImg8bit_sequence", self.split)
+        elif self.img_size == (512, 1024):
             self.images_base = os.path.join(self.root, "leftImg8bit_small", self.split)
             self.sequence_base = os.path.join(self.root, "leftImg8bit_sequence_small", self.split)
         elif self.img_size == (256, 512):
@@ -163,8 +166,10 @@ class CityscapesLoader(SequenceSegmentationLoader):
         )
         return segmentation_path
 
-    def decode_segmap_tocolor(self, temp):
+    @staticmethod
+    def decode_segmap_tocolor(temp):
         return Cityscapes.decode_segmap_tocolor(temp)
 
-    def encode_segmap(self, mask):
+    @staticmethod
+    def encode_segmap(mask):
         return Cityscapes.encode_segmap(mask)

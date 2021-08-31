@@ -22,7 +22,7 @@ class SequenceSegmentationLoader(data.Dataset):
             augmentations=None,
             downsample_gt=True,
             frame_idxs=None,
-            num_scales=None,
+            scales=None,
             color_full_scale=0,
             restrict_dict=None,
             dataset_seed=42,
@@ -34,6 +34,7 @@ class SequenceSegmentationLoader(data.Dataset):
             only_sequences_with_segmentation=True,
             load_labels=True,
             load_sequence=True,
+            load_preprocessed=True,
     ):
         super(SequenceSegmentationLoader, self).__init__()
         self.n_classes = None
@@ -67,16 +68,17 @@ class SequenceSegmentationLoader(data.Dataset):
         self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         self.height = self.img_size[0]
         self.width = self.img_size[1]
-        self.num_scales = num_scales
+        self.scales = list({0, *scales})
         self.frame_idxs = frame_idxs
         assert self.width >= self.height
         self.only_sequences_with_segmentation = only_sequences_with_segmentation
         self.load_labels = load_labels
         self.load_sequence = load_sequence
+        self.load_preprocessed = load_preprocessed
 
         if not self.load_sequence:
             self.frame_idxs = [0]
-            self.num_scales = 1
+            self.scales = [0]
 
         if crop_h is None or crop_w is None or not self.is_train:
             self.crop_h = self.height
@@ -93,7 +95,7 @@ class SequenceSegmentationLoader(data.Dataset):
         self.hue = (-0.1, 0.1)
 
         self.resize = {}
-        for i in range(self.num_scales):
+        for i in self.scales:
             s = 2 ** i
             self.resize[i] = transforms.Resize((self.crop_h // s, self.crop_w // s),
                                                interpolation=Image.ANTIALIAS)
@@ -101,6 +103,7 @@ class SequenceSegmentationLoader(data.Dataset):
         self.resize_full = transforms.Resize((self.height // s, self.width // s),
                                              interpolation=Image.ANTIALIAS)
         self.to_tensor = transforms.ToTensor()
+        self.pil_convert_segmentation = True
 
         self._prepare_filenames()
 
@@ -120,7 +123,9 @@ class SequenceSegmentationLoader(data.Dataset):
                                             load_labeled=self.load_labeled, load_unlabeled=self.load_unlabeled)
         if self.split != "train" and self.num_val_samples is not None:
             self.files = self.files[:self.num_val_samples]
-        if not self.files or len(self.files) == 0:
+        if (not self.files or len(self.files) == 0) and self.restrict_dict is not None \
+                and self.restrict_dict["n_subset"] > 0:
+            print("Restrict subset", self.restrict_dict["n_subset"])
             raise Exception(f"No files for split={self.split} found in {self.images_base}")
 
         print(f"Found {len(self.files)} {self.split} images")
@@ -152,9 +157,11 @@ class SequenceSegmentationLoader(data.Dataset):
     def get_segmentation(self, index, do_flip):
         lbl_path = self.get_segmentation_path(index)
         if self.downsample_gt:
-            lbl = pil_loader(lbl_path, self.width, self.height, is_segmentation=True)
+            lbl = pil_loader(lbl_path, self.width, self.height, is_segmentation=True,
+                             convert_segmentation=self.pil_convert_segmentation)
         else:
-            lbl = pil_loader(lbl_path, -1, -1, is_segmentation=True)
+            lbl = pil_loader(lbl_path, -1, -1, is_segmentation=True,
+                             convert_segmentation=self.pil_convert_segmentation)
         if do_flip:
             lbl = lbl.transpose(Image.FLIP_LEFT_RIGHT)
 
@@ -167,9 +174,18 @@ class SequenceSegmentationLoader(data.Dataset):
         if self.generated_depth_dir:
             depth_path = os.path.join(
                 self.generated_depth_dir,
-                subname.replace(".jpg", ".png")
+                subname.replace("_small", "").replace(".jpg", ".png")
             )
             depth = pil_loader(depth_path, -1, -1, is_segmentation=True, lru_cache=True)
+            # Scale to range 0-1
+            if depth.mode == "L":
+                depth = np.array(depth) / (2 ** 8 - 1)
+            elif depth.mode == "I":
+                depth = np.array(depth) / (2 ** 16 - 1)
+            else:
+                raise NotImplementedError(depth.mode)
+            # print(np.min(depth),np.mean(depth), np.max(depth))
+            depth = Image.fromarray(depth)
             if do_flip:
                 depth = depth.transpose(Image.FLIP_LEFT_RIGHT)
         else:
@@ -230,7 +246,7 @@ class SequenceSegmentationLoader(data.Dataset):
 
         for i in self.frame_idxs:
             del inputs[("color", i, -1)]
-            # del inputs[("color_full", i, -1)]
+            del inputs[("color_full", i, -1)]
             # del inputs[("color_full", i, 0)]
 
         if self.load_labels:
@@ -262,7 +278,7 @@ class SequenceSegmentationLoader(data.Dataset):
 
         for i in self.frame_idxs:
             img = inputs[("color", i, -1)]
-            # inputs[("color_full", i, -1)] = img
+            inputs[("color_full", i, -1)] = img
             if w != tw or h != th:
                 inputs[("color", i, -1)] = img.crop(crop_region)
 
@@ -274,11 +290,11 @@ class SequenceSegmentationLoader(data.Dataset):
 
         # adjusting intrinsics to match each scale in the pyramid
         if self.load_sequence:
-            for scale in range(self.num_scales):
-                K = self.get_K(x1, y1, do_flip)
+            for scale in self.scales:
+                K = self.get_K(x1 / w, y1 / h, do_flip)
 
-                K[0, :] /= (2 ** scale)
-                K[1, :] /= (2 ** scale)
+                K[0, :] *= w / (2 ** scale)
+                K[1, :] *= h / (2 ** scale)
 
                 inv_K = np.linalg.pinv(K)
 
@@ -305,8 +321,10 @@ class SequenceSegmentationLoader(data.Dataset):
                 continue
             n, im, i = k
             if n == "color":
-                for i in range(self.num_scales):
-                    inputs[(n, im, i)] = self.resize[i](inputs[(n, im, i - 1)])
+                last_scale = -1
+                for i in self.scales:
+                    inputs[(n, im, i)] = self.resize[i](inputs[(n, im, last_scale)])
+                    last_scale = i
             if n == "color_full":
                 inputs[(n, im, 0)] = self.resize_full(inputs[(n, im, -1)])
 
@@ -322,19 +340,20 @@ class SequenceSegmentationLoader(data.Dataset):
                     inputs[(n + "_aug", im, i)] = processed_f
 
         if "lbl" in inputs:
-            lbl = np.asarray(inputs["lbl"])
-            lbl = self.encode_segmap(np.array(lbl, dtype=np.uint8))
+            lbl = np.array(inputs["lbl"], dtype=np.uint8)
+            lbl = self.encode_segmap(lbl)
             inputs["lbl"] = torch.from_numpy(lbl).long()
 
         if "pseudo_depth" in inputs:
-            inputs["pseudo_depth"] = self.to_tensor(inputs["pseudo_depth"])
+            inputs["pseudo_depth"] = torch.from_numpy(np.array(inputs["pseudo_depth"]))
 
     def get_K(self, u_offset, v_offset, do_flip):
+        assert 0 <= u_offset <= 1
+        assert 0 <= v_offset <= 1
         u0 = self.u0
         v0 = self.v0
         if do_flip:
-            u0 = self.full_res_shape[0] - u0
-            v0 = self.full_res_shape[1] - v0
+            u0 = 1 - u0
 
         return np.array([[self.fx, 0, u0 - u_offset, 0],
                          [0, self.fy, v0 - v_offset, 0],
@@ -344,10 +363,12 @@ class SequenceSegmentationLoader(data.Dataset):
     def _prepare_filenames(self):
         raise NotImplementedError
 
-    def decode_segmap_tocolor(self, temp):
+    @staticmethod
+    def decode_segmap_tocolor(temp):
         raise NotImplementedError
 
-    def encode_segmap(self, mask):
+    @staticmethod
+    def encode_segmap(mask):
         raise NotImplementedError
 
     def get_image_path(self, index, offset=0):
