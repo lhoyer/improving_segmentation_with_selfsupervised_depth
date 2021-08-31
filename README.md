@@ -1,22 +1,29 @@
 ## Three Ways to Improve Semantic Segmentation with Self-Supervised Depth Estimation
 
-This is the official pytorch implementation of our paper 
-[Three Ways to Improve Semantic Segmentation with Self-Supervised Depth Estimation](https://arxiv.org/pdf/2012.10782.pdf).
+This is the official pytorch implementation of our CVPR21 paper 
+[Three Ways to Improve Semantic Segmentation with Self-Supervised Depth Estimation](https://arxiv.org/pdf/2012.10782.pdf)
+and its extension to semi-supervised domain adaptation 
+[Improving Semi-Supervised and Domain-Adaptive Semantic Segmentation with Self-Supervised Depth Estimation](https://arxiv.org/pdf/2108.12545.pdf).
 
 Training deep networks for semantic segmentation requires large amounts of labeled training data, which presents a major
-challenge in practice, as labeling segmentation masks is a highly labor-intensive process. To address this issue, 
-we present a framework for semi-supervised semantic segmentation, which is enhanced by self-supervised monocular depth 
-estimation from unlabeled images.
+challenge in practice, as labeling segmentation masks is a highly labor-intensive process. To address this issue, we 
+present a framework for semi-supervised and domain-adaptive semantic segmentation, which is enhanced by self-supervised 
+monocular depth estimation (SDE) trained only on unlabeled image sequences.
 
-In particular, we propose three key contributions:
+In particular, we propose four key contributions:
 
-1. We transfer knowledge from features learned during self-supervised depth estimation to semantic segmentation. 
-2. We implement a strong data augmentation by blending images and labels using the structure of the scene.
-3. We utilize the depth feature diversity as well as the level of difficulty of learning depth in a student-teacher 
-framework to select the most useful samples to be annotated for semantic segmentation.
+1. We automatically select the most useful samples to be annotated for semantic segmentation based on the correlation 
+   of sample diversity and difficulty between SDE and semantic segmentation. 
+2. We implement a strong data augmentation by mixing images and labels using the structure of the scene.
+3. We transfer knowledge from features learned during SDE to semantic segmentation by means of transfer and 
+   multi-task learning.
+4. We exploit additional labeled synthetic data with Cross-Domain DepthMix and Matching Geometry Sampling to align
+   synthetic and real data.
 
-We validate the proposed model on the Cityscapes dataset, where all three modules demonstrate significant performance 
-gains, and we achieve state-of-the-art results for semi-supervised semantic segmentation.
+We validate the proposed model on the Cityscapes dataset, where all four contributions demonstrate significant 
+performance gains, and achieve state-of-the-art results for semi-supervised semantic segmentation as well as for 
+semi-supervised domain adaptation. In particular, with only 1/30 of the Cityscapes labels, our method achieves 92% 
+of the fully-supervised baseline performance and even 97% when exploiting additional data from GTA.
 
 Below, you can see the qualitative results of our model trained with only 100 annotated semantic segmentation samples.
 
@@ -32,6 +39,14 @@ If you find this code useful in your research, please consider citing:
   author={Hoyer, Lukas and Dai, Dengxin and Chen, Yuhua and Köring, Adrian and Saha, Suman and Van Gool, Luc},
   booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
   pages={11130--11140},
+  year={2021}
+}
+```
+```
+@article{hoyer2021improving,
+  title={Improving Semi-Supervised and Domain-Adaptive Semantic Segmentation with Self-Supervised Depth Estimation},
+  author={Hoyer, Lukas and Dai, Dengxin and Wang, Qin and Chen, Yuhua and Van Gool, Luc},
+  journal={arXiv preprint arXiv:2108.12545 [cs]},
   year={2021}
 }
 ```
@@ -110,6 +125,11 @@ Table 3 is generated using experiment 210 with the config sel_{pres_method}_scra
 
 Be aware that running all experiments takes multiple weeks on a single GPU. 
 For that reason, we have commented out all but one subset size and seed as well as minor ablations.
+
+### Run Semi-Supervised Domain Adaptation Experiments
+
+In order to run our framework extension to semi-supervised domain adaptation,
+please switch to the `ssda` branch and follow its README.md instructions.
 
 ### Framework Structure
 
